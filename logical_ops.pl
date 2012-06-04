@@ -23,7 +23,7 @@
 
 use 5.010;
 use strict;
-use warnings;
+#use warnings;
 
 ####variablen & constanten
 
@@ -43,8 +43,10 @@ our @K = (0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1
 ####logische Operationen
 #ROTR(rotate right) defined by NIST(1)
 sub ROTR { 
+      
+      my $bit = 32;
       #defined as ROTR^n(x) = (x >> n) | (x << w - n), wobei w = 32, denn SHA256 hat 32bit Wörter; $_[0] = Anzahl der Schritte(n), $_[1] = Wert(x)
-      return ( ($_[1] >> $_[0]) | ($_[1] << (32 - $_[0]) ) ); 
+      return ( ($_[1] >> $_[0]) | ($_[1] << ($bit - $_[0]) ) ); 
 }
 
 

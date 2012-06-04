@@ -19,11 +19,14 @@
 #  Appending bits and bytes
 #  http://perldoc.perl.org/functions/sprintf.html
 #
-#http://docstore.mik.ua/orelly/perl/cookbook/ch02_05.htm
+#
+#
+# test vectors
+# http://csrc.nist.gov/groups/ST/toolkit/examples.html#aHashing
 ######################################################################################################
 
 use 5.010;
-#use strict;
+use strict;
 use warnings;
 do "logical_ops.pl";
 
@@ -32,65 +35,81 @@ my $test;
 our (@H,@K);
 our ($message,$orig_message);
 my ($element,$result);
-our (@N,@M);  
+our (@N,@M,@W);  
+
+our($UPPER32BITS,$LOWER32BITS);
+BEGIN {
+  use Config;
+   die "$0: $^X not configured for 64-bit ints"
+     unless $Config{use64bitint};
+
+  no warnings "portable";
+  *UPPER32BITS = \0xffff_ffff_0000_0000;
+  *LOWER32BITS = \0x0000_0000_ffff_ffff;
+}
 
 ####padding the message into an internal state
 sub sha256_core {
 
-      &sha256_pad;
+      &pad_message;
+      &sha256_extend;
       #&sha256_calc;
       
 }
 
-sub sha256_pad {
-       
-       my ($l,$i,$j); 
-       my ($N,@W);  
-       #append one bit(3)
-       $l = length($message);
-       $N = $l % 512; #anzahl der blöcke
-       #pack "l",$l;
-       $anzahl_der_nullen = 447 - ($l*8); #447 anstatt 448 wegen des extra bits, 448 denn 512-64(für den letzten block) = 448
-       print "Laenge der message (zeichenanzahl): ".$l."\n";
-       print "anzahl der bloecke: ".$N."\n";
-       print "anzahl der nullen: ".$anzahl_der_nullen."\n";
-       #$message = vec($message,1,1)
-       
-       #$message .= 1;
-       #$message .= (chr 0x80).((chr 0x00)x$anzahl_der_nullen);
-       #$message .= pack 'L', length($message);
-       push(@W,$message);
-       
-        foreach my $element (@W)
-             {
-                print unpack("b*","$element");print "\n";
-             }
-       
-       #$binstr = bin2dec($l);
-       #print unpack("B*",$l);
-       printf "%b",$l;
-       print "\n";
-       print $l;
-       print "\n";
-       $binlen = pack "b*","$l";
-        print $binlen;
-       print "\n";
-       $binlen = length($binlen);
-       print $binlen;
-       print "\n";
-       # $mm .= (chr 0x00)x$anzahl_der_nullen;
-       # push (@W,$mm);
+sub pad_message {
+      use bytes;
+
+
+      my $l = bytes::length($message) * 8;
+      my $extra = $l % 512;  # pad to 512-bit boundary
+      my $k = 448 - ($extra + 1);
+
+      # append 1 bit followed by $k zero bits
+      $message .= pack "B*", 1 . 0 x $k;
+
+      # add big-endian length
+      $message .= pack "NN", (($l & $UPPER32BITS) >> 32), ($l & $LOWER32BITS);
       
-      #####print inhalte aus @m
-      # print "element 2: ".$W[0];
-      # print "\n";
+      die "$0: bad length: ", bytes::length $message
+        if (bytes::length($message) * 8) % 512;
+
+
+      # message in 16 stücke teilen, in array pressen
+      push @W, $1 while ($message =~ /(.{1,4})/msxog);
+      #return @W;
       
-      # $length = "@W";
-      # print unpack("H*",$length);
-      # print "\n";
-      # print ($length);
-      # print "\n";
+      #debugging information
+      # my $i = 0;
+      # foreach my $w (@W) {
+            # print "W"."[".$i."]";
+            # print unpack("H*",$w);
+            # print "\n";
+            # $i++;
+      # }
+           
+      # print unpack("H*",$W[1]);
+      # print $W[1];
+
+}
+
+sub sha256_extend {
       
+      my ($i, $s0, $s1);
+      
+      print "############################"."\n";
+      print unpack("H*",$W[0]);;print "\n";
+      print "############################"."\n";
+      
+      # Extend the sixteen 32-bit words into sixty-four 32-bit words:
+      for ($i = 16;$i<=63;$i++) {
+            
+            $s0 = ssig0($W[$i-15]);
+            $s1 = ssig1($W[$i-2]);
+            $W[$i] = $s1 . $W[$i-7] . $s0 . $W[$i-16]
+            
+      }  
+         
 }
 
 sub sha256_calc {
@@ -125,7 +144,26 @@ sub sha256_print {
       #print $l."\n";
       print @M;
             print join("\n",@M);
-      
+            
+            
+           
+      #debugging hash values:
+      my $i = 0;
+      foreach my $element (@H)
+            {
+                print "H"."[".$i."]";
+                my $results = do printf("%#x", $element);
+                print "\n";
+                $i++;
+            }
+            
+      my $a = 0;
+      foreach my $w (@W) {
+            print "W"."[".$a."]";
+            print unpack("H*",$w);
+            print "\n";
+            $a++;
+      }
 }
 
 # sub dec2bin {
@@ -147,26 +185,11 @@ sub sha256 {
 #call the main
 sha256;
 
+
+
 # $rotr = ROTR(13,E)
 # $test = ch(3,7,8);
 # print "$test\n";
 
 
 
- # # convert string msg into 512-bit/16-integer blocks arrays of ints [§5.2.1]
-    # var l = msg.length/4 + 2;  # length (in 32-bit integers) of msg + ‘1’ + appended length
-    # var N = Math.ceil(l/16);   # number of 16-integer-blocks required to hold 'l' ints
-    # var M = new Array(N);
-
-    # for (var i=0; i<N; i++) {
-        # M[i] = new Array(16);
-        # for (var j=0; j<16; j++) {  # encode 4 chars per integer, big-endian encoding
-            # M[i][j] = (msg.charCodeAt(i*64+j*4)<<24) | (msg.charCodeAt(i*64+j*4+1)<<16) | 
-                      # (msg.charCodeAt(i*64+j*4+2)<<8) | (msg.charCodeAt(i*64+j*4+3));
-        # } # note running off the end of msg is ok 'cos bitwise ops on NaN return 0
-    # }
-    # # add length (in bits) into final pair of 32-bit integers (big-endian) [§5.1.1]
-    # # note: most significant word would be (len-1)*8 >>> 32, but since JS converts
-    # # bitwise-op args to 32 bits, we need to simulate this by arithmetic operators
-    # M[N-1][14] = ((msg.length-1)*8) / Math.pow(2, 32); M[N-1][14] = Math.floor(M[N-1][14])
-    # M[N-1][15] = ((msg.length-1)*8) & 0xffffffff;
