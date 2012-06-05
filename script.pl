@@ -26,8 +26,9 @@
 ######################################################################################################
 
 use 5.010;
-use strict;
-use warnings;
+#use strict;
+#use warnings;
+use Digest::SHA qw(sha256_hex);
 do "logical_ops.pl";
 
 
@@ -39,9 +40,9 @@ our (@N,@M,@W);
 
 our($UPPER32BITS,$LOWER32BITS);
 BEGIN {
-  use Config;
-   die "$0: $^X not configured for 64-bit ints"
-     unless $Config{use64bitint};
+  # use Config;
+   # die "$0: $^X not configured for 64-bit ints"
+     # unless $Config{use64bitint};
 
   no warnings "portable";
   *UPPER32BITS = \0xffff_ffff_0000_0000;
@@ -176,15 +177,26 @@ sub sha256_print {
     # return unpack("N", pack("B32", substr("0" x 32 . shift, -32)));
 # }
 
-sub sha256 {
+sub sha256main {
       &sha256_read;
       &sha256_core;
       &sha256_print;      
 }
 
-#call the main
-sha256;
 
+my $input = $ARGV[0];
+my ($digest);
+
+if ($input eq "-c") {
+      sha256main;
+} else {
+      &sha256_read;
+      # all-at-once (Functional style)
+	  # cheating = -c
+      $digest = sha256_hex($message);
+      print $digest;
+      print "\n";
+}
 
 
 # $rotr = ROTR(13,E)
