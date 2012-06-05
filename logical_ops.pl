@@ -94,4 +94,4 @@ sub ssig0 {
 #smallsigma1
 sub ssig1 {
       return ( ROTR(17,$_[0]) ^ ROTR(19,$_[0]) ^ SHR(10,$_[0]) );
-}  
+}  #test

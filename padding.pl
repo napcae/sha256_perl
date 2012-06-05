@@ -37,4 +37,4 @@ sub pad_message {
 
 my $mmm = pad_message "abc";
 
-print unpack("H*",$mmm);
+print unpack("H*",$mmm);#test
